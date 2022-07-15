@@ -1,0 +1,61 @@
+name: Publish Docker image
+
+on:
+  push:
+    branches:
+      - 'main'
+    tags:
+      - 'v*'
+
+jobs:
+  push_to_dockerhub:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Extract metadata
+        id: meta-distroless
+        uses: docker/metadata-action@v4
+        with:
+          images: mocknen/inadyn
+          tags: |
+            type=ref,event=tag
+            type=edge,branch=main
+          flavor: |
+            latest=auto
+            suffix=-distroless,onlatest=true
+
+      - name: Extract metadata
+        id: meta-alpine
+        uses: docker/metadata-action@v4
+        with:
+          images: mocknen/inadyn
+          tags: |
+            type=ref,event=tag
+            type=edge,branch=main
+          flavor: |
+            latest=false
+            suffix=-alpine,onlatest=true
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push distroless based image
+        uses: docker/build-push-action@v3
+        with:
+          context: distroless
+          push: true
+          tags: ${{ steps.meta-distroless.outputs.tags }}
+          labels: ${{ steps.meta-distroless.outputs.labels }}
+
+      - name: Build and push alpine based image
+        uses: docker/build-push-action@v3
+        with:
+          context: alpine
+          push: true
+          tags: ${{ steps.meta-alpine.outputs.tags }}
+          labels: ${{ steps.meta-alpine.outputs.labels }}
