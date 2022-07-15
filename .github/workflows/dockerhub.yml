@@ -21,10 +21,11 @@ jobs:
           images: mocknen/inadyn
           tags: |
             type=ref,event=tag
+            type=ref,event=tag,suffix=-distroless
             type=edge,branch=main
+            type=edge,branch=main,suffix=-distroless
           flavor: |
             latest=auto
-            suffix=-distroless,onlatest=true
 
       - name: Extract metadata
         id: meta-alpine
@@ -36,7 +37,7 @@ jobs:
             type=edge,branch=main
           flavor: |
             latest=false
-            suffix=-alpine,onlatest=true
+            suffix=-alpine
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
