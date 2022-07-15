@@ -1,0 +1,9 @@
+services:
+  inadyn:
+    image: mocknen/inadyn
+    container_name: inadyn
+    volumes:
+      - type: bind
+        source: data
+        target: /data
+        read_only: true

@@ -1,0 +1,73 @@
+* Dockerfile for Inadyn
+  These are Dockerfiles to run [[https://github.com/troglobit/inadyn][troglobit/inadyn]], a DDNS client.
+
+** Example usage
+   The example below shows how to set up the container using docker compose.
+
+   Before proceeding, first make sure that the docker compose command is executable.
+   #+begin_src bash
+     docker compose version
+   #+end_src
+   #+begin_example
+     Docker Compose version v2.6.1
+   #+end_example
+
+   Create a directory to store configuration files.
+   #+begin_src bash
+     mkdir -p ~/inadyn/data
+   #+end_src
+
+   Create a docker compose configuration file, or you can copy it from [[file:compose.yaml][here]].
+   By default, inadyn in this repository configuration reads =/data/inadyn.conf= as a configuration file.
+   #+begin_src bash
+     cat <<EOF >~/inadyn/compose.yaml
+     services:
+       inadyn:
+         image: mocknen/inadyn
+         container_name: inadyn
+         restart: unless-stopped
+         volumes:
+           - type: bind
+             source: data
+             target: /data
+             read_only: true
+     EOF
+   #+end_src
+
+   Create an inadyn configuration file.
+   #+begin_src bash
+     cloudflare_zone=example.com
+     cloudflare_api=XYZabcdefghijklmnopqrstuvwxyz0123456789A
+     target_name=usage.example.com
+     cat <<EOF >~/inadyn/data/inadyn.conf
+     period = 600
+
+     provider default@cloudflare.com {
+         username = ${cloudflare_zone}
+         password = ${cloudflare_api}
+         hostname = ${target_name}
+         checkip-server = api.ipify.org
+     }
+     EOF
+   #+end_src
+
+   Optionally, make sure there are no problems with the configuration file.
+   No output means no problem.
+   #+begin_src bash
+     docker compose -f ~/inadyn/compose.yaml run --rm inadyn --check-config
+   #+end_src
+
+   Fire up!
+   #+begin_src bash
+     docker compose -f ~/inadyn/compose.yaml up -d
+   #+end_src
+
+   Check the log.
+   #+begin_src bash
+     docker compose -f ~/inadyn/compose.yaml logs -t
+   #+end_src
+
+   Shut down.
+   #+begin_src bash
+     docker compose -f ~/inadyn/compose.yaml down
+   #+end_src
