@@ -2,8 +2,14 @@ services:
   inadyn:
     image: mocknen/inadyn
     container_name: inadyn
+    restart: unless-stopped
     volumes:
       - type: bind
         source: data
         target: /data
         read_only: true
+      - type: volume
+        source: cache
+        target: /home/nonroot/.cache/inadyn
+volumes:
+  cache:

@@ -5,10 +5,6 @@ updates:
     schedule:
       interval: "daily"
   - package-ecosystem: "docker"
-    directory: "/distroless"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "docker"
-    directory: "/alpine"
+    directory: "/"
     schedule:
       interval: "daily"

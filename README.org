@@ -1,24 +1,26 @@
 * Dockerfile for Inadyn
-  These are Dockerfiles to run [[https://github.com/troglobit/inadyn][troglobit/inadyn]], a DDNS client.
+  A Dockerfile to run [[https://github.com/troglobit/inadyn][troglobit/inadyn]], a DDNS client.
 
 ** Example usage
    The example below shows how to set up the container using docker compose.
 
-   Before proceeding, first make sure that the docker compose command is executable.
+   Before proceeding, make sure that the docker compose command is executable.
    #+begin_src bash
      docker compose version
    #+end_src
+
+   Expected ouput is something like this:
    #+begin_example
      Docker Compose version v2.6.1
    #+end_example
 
-   Create a directory to store configuration files.
+   Create a directory to store a configuration file.
    #+begin_src bash
      mkdir -p ~/inadyn/data
    #+end_src
 
-   Create a docker compose configuration file, or you can copy it from [[file:compose.yaml][here]].
-   By default, inadyn in this repository configuration reads =/data/inadyn.conf= as a configuration file.
+   Create a docker compose configuration file as follows, or you can copy it from [[file:compose.yaml][here]].
+   By default, inadyn in this container reads =/data/inadyn.conf= as a configuration file.
    #+begin_src bash
      cat <<EOF >~/inadyn/compose.yaml
      services:
@@ -31,6 +33,11 @@
              source: data
              target: /data
              read_only: true
+           - type: volume
+             source: cache
+             target: /home/nonroot/.cache/inadyn
+     volumes:
+       cache:
      EOF
    #+end_src
 
@@ -70,4 +77,9 @@
    Shut down.
    #+begin_src bash
      docker compose -f ~/inadyn/compose.yaml down
+   #+end_src
+
+   If you encounter problems, you can run it with debug information displayed.
+   #+begin_src bash
+     docker compose -f ~/inadyn/compose.yaml run --rm inadyn --foreground --no-pidfile --loglevel=debug
    #+end_src
