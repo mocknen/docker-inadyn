@@ -8,6 +8,8 @@ ARG INADYN_TAG=v2.9.1
 ARG INADYN_SHA256=7370eb7ad5d33a9cf2e7e4a6a86c09587fbf9592cd357c6f472c33f575bac26d
 ARG DEBIAN_IMAGE=debian:11-slim
 ARG DISTROLESS_IMAGE=gcr.io/distroless/static-debian11:nonroot
+ARG CC_DEFAULT=clang
+ARG MAKEFLAGS_DEFAULT
 
 
 FROM ${DEBIAN_IMAGE} AS curl
@@ -56,7 +58,36 @@ echo "${INADYN_SHA256}  /inadyn.tar.gz" | sha256sum -c --status
 EOF
 
 
-FROM ${DEBIAN_IMAGE} AS fetch-libc6
+FROM ${DEBIAN_IMAGE} AS fetch-essentials
+
+WORKDIR /tmp
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked <<EOF
+#!/bin/bash -eu
+apt update
+readonly packages=( \
+    binutils \
+    xz-utils \
+)
+DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends ${packages[@]}
+mkdir /essentials
+readonly libc6_deb="$(apt download libc6 --print-uris | cut -f2 -d' ')"
+apt download libc6
+ar x "${libc6_deb}"
+tar xf data.tar.xz -C /essentials
+rm control.tar.xz data.tar.xz debian-binary "${libc6_deb}"
+if [ "$(uname -m)" == "armv7l" ]; then
+    readonly libatomic1_deb="$(apt download libatomic1 --print-uris | cut -f2 -d' ')"
+    apt download libatomic1
+    ar x "${libatomic1_deb}"
+    tar xf data.tar.xz -C /essentials
+    rm control.tar.xz data.tar.xz debian-binary "${libatomic1_deb}"
+fi
+rm -r /essentials/usr/share
+EOF
+
+
+FROM ${DEBIAN_IMAGE} AS fetch-libgcc-10-dev
 
 WORKDIR /tmp
 
@@ -89,7 +120,10 @@ readonly packages=( \
 DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends ${packages[@]}
 EOF
 
-ENV CC=clang
+ARG CC_DEFAULT
+ARG MAKEFLAGS_DEFAULT
+ENV CC=${CC_DEFAULT}
+ENV MAKEFLAGS=${MAKEFLAGS_DEFAULT}
 
 
 FROM build-base AS build-openssl
@@ -126,6 +160,7 @@ mkdir confuse/build
 cd confuse/build
 ../configure --disable-examples --disable-nls --disable-rpath
 make install
+rm /usr/local/lib/libconfuse.{la,so{,.2{,.1.0}}}
 EOF
 
 
@@ -141,19 +176,10 @@ DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends ${packages
 EOF
 
 COPY --from=fetch-inadyn /inadyn.tar.gz .
-COPY --from=build-confuse /usr/local/include \
-                          /usr/local/include
-COPY --from=build-confuse /usr/local/lib/pkgconfig \
-                          /usr/local/lib/pkgconfig
-COPY --from=build-confuse /usr/local/lib/libconfuse.a \
-                          /usr/local/lib
-COPY --from=build-openssl /usr/local/include \
-                          /usr/local/include
-COPY --from=build-openssl /usr/local/lib64/pkgconfig \
-                          /usr/local/lib64/pkgconfig
-COPY --from=build-openssl /usr/local/lib64/libcrypto.a \
-                          /usr/local/lib64/libssl.a \
-                          /usr/local/lib64
+COPY --from=build-confuse /usr/local \
+                          /usr/local
+COPY --from=build-openssl /usr/local \
+                          /usr/local
 
 ENV PKG_CONFIG='pkg-config --static'
 ENV PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig
@@ -170,7 +196,7 @@ EOF
 
 FROM ${DISTROLESS_IMAGE}
 
-COPY --from=fetch-libc6 /libc6 /
+COPY --from=fetch-essentials /essentials /
 COPY --from=build-inadyn /usr/local/sbin/inadyn /usr/local/sbin/inadyn
 
 WORKDIR /home/nonroot/.cache/inadyn

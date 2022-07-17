@@ -14,7 +14,7 @@
      Docker Compose version v2.6.1
    #+end_example
 
-   Create a directory to store the configuration files and change the working directory to it.
+   Create a directory to store the configuration files and change the working directory to there.
    #+begin_src bash
      mkdir ~/inadyn
      cd ~/inadyn
