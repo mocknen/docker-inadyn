@@ -14,15 +14,16 @@
      Docker Compose version v2.6.1
    #+end_example
 
-   Create a directory to store a configuration file.
+   Create a directory to store the configuration files and change the working directory to it.
    #+begin_src bash
-     mkdir -p ~/inadyn/data
+     mkdir ~/inadyn
+     cd ~/inadyn
    #+end_src
 
    Create a docker compose configuration file as follows, or you can copy it from [[file:compose.yaml][here]].
    By default, inadyn in this container reads =/data/inadyn.conf= as a configuration file.
    #+begin_src bash
-     cat <<EOF >~/inadyn/compose.yaml
+     cat <<EOF >compose.yaml
      services:
        inadyn:
          image: mocknen/inadyn
@@ -42,18 +43,18 @@
    #+end_src
 
    Create an inadyn configuration file.
+   Of course, you have to set your own variables.
    #+begin_src bash
      cloudflare_zone=example.com
      cloudflare_api=XYZabcdefghijklmnopqrstuvwxyz0123456789A
      target_name=usage.example.com
-     cat <<EOF >~/inadyn/data/inadyn.conf
+     mkdir data
+     cat <<EOF >data/inadyn.conf
      period = 600
-
      provider default@cloudflare.com {
          username = ${cloudflare_zone}
          password = ${cloudflare_api}
          hostname = ${target_name}
-         checkip-server = api.ipify.org
      }
      EOF
    #+end_src
@@ -61,25 +62,56 @@
    Optionally, make sure there are no problems with the configuration file.
    No output means no problem.
    #+begin_src bash
-     docker compose -f ~/inadyn/compose.yaml run --rm inadyn --check-config
+     docker compose run --rm inadyn --check-config
    #+end_src
 
    Fire up!
    #+begin_src bash
-     docker compose -f ~/inadyn/compose.yaml up -d
+     docker compose up -d
    #+end_src
 
    Check the log.
    #+begin_src bash
-     docker compose -f ~/inadyn/compose.yaml logs -t
+     docker compose logs -t
    #+end_src
 
    Shut down.
    #+begin_src bash
-     docker compose -f ~/inadyn/compose.yaml down
+     docker compose down
    #+end_src
 
    If you encounter problems, you can run it with debug information displayed.
    #+begin_src bash
-     docker compose -f ~/inadyn/compose.yaml run --rm inadyn --foreground --no-pidfile --loglevel=debug
+     docker compose run --rm inadyn --foreground --no-pidfile --loglevel=debug
+   #+end_src
+
+   It is also possible to start the container automatically at system startup.
+   Let's assume you are using Docker in Rootless mode.
+   As described in the instructions [[https://docs.docker.com/engine/security/rootless/#daemon][here]], first configure the Docker Daemon to start at system startup.
+   Then configure the systemd service to start the container, as shown in the next example.
+   Note that =WorkingDirectory= may be different for you.
+   #+begin_src bash
+     cat <<EOF >~/.config/systemd/user/docker-compose-inadyn.service
+     [Unit]
+     Description=Docker Compose Inadyn Service
+     Requires=docker.service
+     After=docker.service
+
+     [Service]
+     Type=oneshot
+     RemainAfterExit=yes
+     WorkingDirectory=${HOME}/inadyn
+     Environment=DOCKER_HOST=unix://${XDG_RUNTIME_DIR}/docker.sock
+     ExecStart=${HOME}/bin/docker compose up -d
+     ExecStop=${HOME}/bin/docker compose down
+     TimeoutStartSec=0
+
+     [Install]
+     WantedBy=default.target
+     EOF
+   #+end_src
+
+   Finally, enable the service.
+   #+begin_src bash
+     systemctl --user enable --now docker-compose-inadyn
    #+end_src
