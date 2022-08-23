@@ -98,13 +98,11 @@
      After=docker.service
 
      [Service]
-     Type=oneshot
-     RemainAfterExit=yes
-     WorkingDirectory=${HOME}/inadyn
-     Environment=DOCKER_HOST=unix://${XDG_RUNTIME_DIR}/docker.sock
-     ExecStart=${HOME}/bin/docker compose up -d
-     ExecStop=${HOME}/bin/docker compose down
-     TimeoutStartSec=0
+     WorkingDirectory=%h/inadyn
+     Environment=DOCKER_HOST=unix://%t/docker.sock
+     ExecStartPre=/bin/sleep 30
+     ExecStart=%h/bin/docker compose up
+     ExecStop=%h/bin/docker compose down
 
      [Install]
      WantedBy=default.target
@@ -113,5 +111,6 @@
 
    Finally, enable the service.
    #+begin_src bash
+     systemctl --user daemon-reload
      systemctl --user enable --now docker-compose-inadyn
    #+end_src
